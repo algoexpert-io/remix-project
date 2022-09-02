@@ -7,6 +7,7 @@ import Web3 from 'web3'
 import { format } from 'util'
 import { compileFileOrFiles } from './compiler'
 import { deployAll } from './deployer'
+import * as nodeFs from 'fs';
 
 /**
  * @dev run test contract files (used for CLI)
@@ -119,6 +120,8 @@ export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3
       let totalFailing = 0
       let totalTime = 0
 
+      const testResultFilename = process.env["RESULTS_FILENAME"];
+
       const _testCallback = function (err: Error | null | undefined, result: TestResultInterface) {
         if (err) throw err
         if (result.type === 'contract') {
@@ -127,6 +130,7 @@ export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3
         } else if (result.type === 'testPass') {
           if (result?.hhLogs?.length) result.hhLogs.forEach(printLog)
           signale.result(result.value.white)
+          testResultFilename && nodeFs.appendFileSync(testResultFilename, 'true\n');
         } else if (result.type === 'testFailure') {
           if (result?.hhLogs?.length) result.hhLogs.forEach(printLog)
           signale.error(result.value.white)
@@ -136,6 +140,7 @@ export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3
           }
           console.log(colors.red('\t    Message: ' + result.errMsg))
           console.log('\n')
+          testResultFilename && nodeFs.appendFileSync(testResultFilename, 'false\n');
         }
       }
       const _resultsCallback = (_err: Error | null | undefined, result: ResultsInterface, cb) => {
@@ -144,7 +149,7 @@ export function runTestFiles (filepath: string, isDirectory: boolean, web3: Web3
         totalTime += result.timePassed
         cb()
       }
-
+      
       async.eachOfLimit(contractsToTest, 1, (contractName: string, index, cb) => {
         try {
           const fileAST: AstNode = sourceASTs[contracts[contractName]['filename']]
